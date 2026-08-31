@@ -1,0 +1,9 @@
+torch>=2.2
+torchtext>=0.18
+torchdata>=0.8
+spacy>=3.7
+sacrebleu>=2.4
+plotly>=5.18
+pyyaml>=6.0
+GPUtil>=1.4
+pandas>=2.0
