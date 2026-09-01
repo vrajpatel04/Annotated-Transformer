@@ -3,17 +3,18 @@ name = "annotated-transformer"
 version = "0.1.0"
 description = "Modular OOP implementation of the Annotated Transformer on Multi30k"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
-    "torch>=2.2",
-    "torchtext>=0.18",
-    "torchdata>=0.8",
+    "torch>=2.6",
     "spacy>=3.7",
+    "de-core-news-sm",
+    "en-core-web-sm",
     "sacrebleu>=2.4",
     "plotly>=5.18",
     "pyyaml>=6.0",
     "GPUtil>=1.4",
     "pandas>=2.0",
+    "datasets>=3.0",
 ]
 
 [project.scripts]
@@ -31,6 +32,16 @@ sources = ["src"]
 
 [tool.uv]
 package = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+de-core-news-sm = { url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl" }
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }
 
 [dependency-groups]
 dev = []

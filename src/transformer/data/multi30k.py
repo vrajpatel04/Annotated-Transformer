@@ -2,20 +2,68 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import torch
+from datasets import load_dataset
 from torch.nn.functional import pad
-from torch.utils.data import DataLoader
-from torchtext.data.functional import to_map_style_dataset
-from torchtext.datasets import Multi30k
-from torchtext.vocab import build_vocab_from_iterator
+from torch.utils.data import DataLoader, Dataset
 
 from transformer.config import TrainingConfig
 from transformer.data.tokenizers import TokenizerManager
+from transformer.data.vocab import Vocab, build_vocab_from_iterator
 
 
 SPECIALS = ["<s>", "</s>", "<blank>", "<unk>"]
+HF_DATASET_NAME = "bentrevett/multi30k"
+HF_SPLIT_NAMES = {
+    "train": "train",
+    "valid": "validation",
+    "test": "test",
+}
+
+_SPLIT_CACHE: dict[tuple[str, str], tuple["_Multi30kSplit", "_Multi30kSplit", "_Multi30kSplit"]] = {}
+
+
+class _Multi30kSplit(Dataset):
+    """Map-style Multi30k split as (source, target) sentence pairs."""
+
+    def __init__(self, pairs: list[tuple[str, str]]):
+        self.pairs = pairs
+
+    def __len__(self) -> int:
+        return len(self.pairs)
+
+    def __getitem__(self, index: int) -> tuple[str, str]:
+        return self.pairs[index]
+
+
+def _pairs_from_hf_split(
+    split: str,
+    src_lang: str,
+    tgt_lang: str,
+    dataset_dict,
+) -> list[tuple[str, str]]:
+    rows = dataset_dict[HF_SPLIT_NAMES[split]]
+    return [(row[src_lang], row[tgt_lang]) for row in rows]
+
+
+def load_multi30k_splits(
+    language_pair: tuple[str, str],
+) -> tuple[_Multi30kSplit, _Multi30kSplit, _Multi30kSplit]:
+    """Load train/valid/test Multi30k splits from Hugging Face."""
+    if language_pair in _SPLIT_CACHE:
+        return _SPLIT_CACHE[language_pair]
+
+    src_lang, tgt_lang = language_pair
+    print(f"Loading {HF_DATASET_NAME} from Hugging Face ...")
+    dataset_dict = load_dataset(HF_DATASET_NAME)
+
+    splits = (
+        _Multi30kSplit(_pairs_from_hf_split("train", src_lang, tgt_lang, dataset_dict)),
+        _Multi30kSplit(_pairs_from_hf_split("valid", src_lang, tgt_lang, dataset_dict)),
+        _Multi30kSplit(_pairs_from_hf_split("test", src_lang, tgt_lang, dataset_dict)),
+    )
+    _SPLIT_CACHE[language_pair] = splits
+    return splits
 
 
 class Multi30kDataModule:
@@ -25,23 +73,23 @@ class Multi30kDataModule:
         self.config = config
         src_lang, tgt_lang = config.language_pair
         self.tokenizers = TokenizerManager(src_lang, tgt_lang)
-        self.vocab_src = None
-        self.vocab_tgt = None
-        self.pad_idx = None
+        self.vocab_src: Vocab | None = None
+        self.vocab_tgt: Vocab | None = None
+        self.pad_idx: int | None = None
 
     @staticmethod
     def _yield_tokens(data_iter, tokenizer_fn, index: int):
         for sample in data_iter:
             yield tokenizer_fn(sample[index])
 
-    def build_vocabularies(self) -> tuple:
+    def build_vocabularies(self) -> tuple[Vocab, Vocab]:
         if self.config.vocab_path.exists():
             self.vocab_src, self.vocab_tgt = torch.load(
                 self.config.vocab_path, weights_only=False
             )
         else:
-            train, val, test = Multi30k(language_pair=self.config.language_pair)
-            combined = list(train) + list(val) + list(test)
+            train, valid, test = load_multi30k_splits(self.config.language_pair)
+            combined = train.pairs + valid.pairs + test.pairs
 
             print("Building source vocabulary ...")
             self.vocab_src = build_vocab_from_iterator(
@@ -147,12 +195,9 @@ class Multi30kDataModule:
                 pad_id,
             )
 
-        train_iter, valid_iter, test_iter = Multi30k(
-            language_pair=self.config.language_pair
+        train_map, valid_map, test_map = load_multi30k_splits(
+            self.config.language_pair
         )
-        train_map = to_map_style_dataset(train_iter)
-        valid_map = to_map_style_dataset(valid_iter)
-        test_map = to_map_style_dataset(test_iter)
 
         train_loader = DataLoader(
             train_map,

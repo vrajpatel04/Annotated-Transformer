@@ -26,16 +26,16 @@ main.py                    # Backward-compatible wrapper
 
 ## Setup (uv)
 
-This project uses [uv](https://docs.astral.sh/uv/) for dependency management. Python 3.12 is pinned in `.python-version`.
+This project uses [uv](https://docs.astral.sh/uv/) for dependency management. Python 3.13 is pinned in `.python-version`.
 
 ```bash
-# Install all dependencies into .venv (creates lock file if needed)
+# Install all dependencies into .venv (includes spaCy language models)
 uv sync
-
-# Download spaCy language models
-uv run python -m spacy download de_core_news_sm
-uv run python -m spacy download en_core_web_sm
 ```
+
+The Multi30k dataset is loaded from Hugging Face: [bentrevett/multi30k](https://huggingface.co/datasets/bentrevett/multi30k).
+
+If upgrading from an older setup, close any terminals using `.venv`, then rerun `uv sync` so the environment is recreated on Python 3.13. Delete `outputs/vocab.pt` if present so vocabularies are rebuilt without torchtext.
 
 ## Training
 
@@ -109,10 +109,9 @@ print(results["corpus_bleu"], results["corpus_perplexity"])
 
 | Command | Description |
 |---------|-------------|
-| `uv sync` | Install/sync dependencies from `uv.lock` |
+| `uv sync` | Install/sync dependencies (including spaCy models) |
 | `uv add <pkg>` | Add a new dependency |
 | `uv run train-transformer` | Run the training CLI |
-| `uv run python -m spacy download ...` | Install spaCy models |
 
 ## Reference
 
