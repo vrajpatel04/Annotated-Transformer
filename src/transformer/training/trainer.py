@@ -15,6 +15,7 @@ from transformer.data.multi30k import Multi30kDataModule
 from transformer.evaluation.evaluator import Evaluator
 from transformer.model.transformer import TransformerFactory
 from transformer.training.batch import Batch, TrainState
+from transformer.training.device import describe_device, log_device_info, resolve_device
 from transformer.training.loss import DummyOptimizer, DummyScheduler, LabelSmoothing, LossComputer
 from transformer.training.scheduler import learning_rate
 
@@ -24,15 +25,9 @@ class Trainer:
 
     def __init__(self, config: TrainingConfig):
         self.config = config
-        self.device = self._resolve_device(config.device)
+        self.device = resolve_device(config.device)
         self.data_module = Multi30kDataModule(config)
         self.metrics = MetricsTracker()
-
-    @staticmethod
-    def _resolve_device(device: str) -> torch.device:
-        if device == "auto":
-            return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        return torch.device(device)
 
     def _build_model(self) -> torch.nn.Module:
         vocab_src, vocab_tgt = self.data_module.build_vocabularies()
@@ -148,7 +143,8 @@ class Trainer:
         pad_idx = self.data_module.pad_idx
         train_state = TrainState()
 
-        print(f"Training on {self.device} for {self.config.num_epochs} epochs")
+        log_device_info(self.device)
+        print(f"Training on {describe_device(self.device)} for {self.config.num_epochs} epochs")
         for epoch in range(self.config.num_epochs):
             print(f"\nEpoch {epoch + 1}/{self.config.num_epochs} — Training")
             model.train()

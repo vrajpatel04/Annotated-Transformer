@@ -35,6 +35,36 @@ uv sync
 
 The Multi30k dataset is loaded from Hugging Face: [bentrevett/multi30k](https://huggingface.co/datasets/bentrevett/multi30k).
 
+### GPU support
+
+By default, `uv sync` installs a **CUDA-enabled PyTorch** build (`cu124`). Training uses `device: auto` from `configs/default.yaml`, which picks `cuda` when a compatible NVIDIA GPU is available and otherwise falls back to CPU.
+
+```bash
+# CUDA PyTorch (GPU)
+uv sync
+```
+
+For a CPU-only PyTorch install (smaller download, no NVIDIA GPU required), reinstall torch from the CPU index after syncing:
+
+```bash
+uv sync
+uv pip install --reinstall torch --index https://download.pytorch.org/whl/cpu
+```
+
+Verify GPU detection:
+
+```bash
+uv run python -c "import torch; print('cuda:', torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'cpu')"
+```
+
+Force a device at runtime:
+
+```bash
+uv run train-transformer --device cuda
+uv run train-transformer --device cpu
+uv run train-transformer --device cuda:0
+```
+
 If upgrading from an older setup, close any terminals using `.venv`, then rerun `uv sync` so the environment is recreated on Python 3.13. Delete `outputs/vocab.pt` if present so vocabularies are rebuilt without torchtext.
 
 ## Training
@@ -77,6 +107,7 @@ Edit `configs/default.yaml` or pass CLI flags:
 | `d_model` | 512 | Model dimension |
 | `num_layers` | 6 | Encoder/decoder layers |
 | `label_smoothing` | 0.1 | KL label smoothing factor |
+| `device` | auto | `auto`, `cpu`, `cuda`, or `cuda:0` |
 
 ## Dashboard Metrics
 
