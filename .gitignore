@@ -223,7 +223,7 @@ skills-lock.json
 
 # Training outputs
 outputs/
-data/
+/data/
 *.pt
 vocab.pt
 multi30k_model_*
